@@ -43,5 +43,8 @@ contract PriceOracle {
             int256 scale = p.expo + 18;
             numberD18 = (scale > 0) ? (price-conf)*10**uint256(scale) : (price-conf)/10**uint256(-scale);
         }
+        else if (oracleType == FLARE_ORACLE) {
+            
+        }
     }
 }
