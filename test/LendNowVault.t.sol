@@ -21,7 +21,7 @@ contract LendNowVaultTest is Test {
         quote = new ERC20Mock();
         ajnaPoolFactory = new ERC20PoolFactory(address(ajna));
         pool = IERC20Pool(ajnaPoolFactory.deployPool(address(collateral), address(quote), 0.01e18));
-        t = new LendNowVault(pool, quote, "USDC");
+        t = new LendNowVault(address(pool), 5000, address(quote), "USDC");
     }
 
     function test_getPrice() public {
@@ -35,5 +35,14 @@ contract LendNowVaultTest is Test {
         console2.log(t.balanceOf(address(this)));
         (uint256 lp, ) = pool.lenderInfo(t.getPriceIndex(), address(t));
         console2.log(lp);
+        console2.log(t.totalAssets());
+    }
+
+    function test_withdraw() public {
+        quote.mint(address(this), 1e18);
+        quote.approve(address(t), 1e18);
+        t.deposit(1e18, address(this));
+        uint256 balance = t.balanceOf(address(this));
+        t.redeem(balance, address(this), address(this));
     }
 }
