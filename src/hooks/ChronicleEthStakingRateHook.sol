@@ -1,9 +1,7 @@
-pragma solidity 0.8.18;
+pragma solidity ^0.8.0;
+import {IInterestHook} from "../InterestHook.sol";
 
-import {IPyth} from "./interfaces/IPyth.sol";
-import {PythStructs} from "./interfaces/PythStructs.sol";
-import {ContractRegistry} from "./interfaces/flare/ContractRegistry.sol";
-import {TestFtsoV2Interface} from "./interfaces/flare/TestFtsoV2Interface.sol";
+// SPDX-License-Identifier: MIT
 
 interface ISelfKisser {
     /// @notice Thrown if SelfKisser dead.
@@ -132,70 +130,14 @@ interface IChronicle {
         returns (bool isValid, uint value, uint age);
 }
 
-contract PriceOracle {
-    uint8 constant CONSTANT_VALUE = 1;
-    uint8 constant PYTH_OFFCHAIN = 2;
-    uint8 constant FLARE_ORACLE = 3;
-    uint8 constant L1SLOAD_CHORNICLE_ORACLE = 4;
-    uint8 constant CHORNICLE_ORACLE = 5;
-    struct Oracle {
-        uint8 oracleType;
-        bytes extraData;
-    }
-    address constant L1SLOAD_PRECOMPILE = 0x0000000000000000000000000000000000000101;
-    IPyth immutable pyth;
-    mapping (bytes32 oracleId => Oracle) public oracleRegistry;
-
-    constructor(address _pyth) {
-        pyth = IPyth(_pyth);
+contract ChronicleEthStakingRateHook is IInterestHook {
+    IChronicle oracle;
+    constructor(ISelfKisser selfKisser, IChronicle oracle_) {
+        selfKisser.selfKiss(address(oracle));
+        oracle = oracle_;
     }
 
-    function selfKiss(address selfKisser, address oracle) public {
-        ISelfKisser(selfKisser).selfKiss(oracle);
+    function getRate() external returns (uint256) {
+        return oracle.read();
     }
-
-    function register(Oracle memory oracleData) external returns (bytes32) {
-        bytes32 oracleId = keccak256(abi.encode(oracleData));
-        if(oracleRegistry[oracleId].oracleType == 0) {
-            oracleRegistry[oracleId].oracleType = oracleData.oracleType;
-            oracleRegistry[oracleId].extraData = oracleData.extraData;
-        }
-        return oracleId;
-    }
-
-    function read(bytes32 oracleId) external view returns (uint256 numberD18) {
-        uint8 oracleType = oracleRegistry[oracleId].oracleType;
-        if(oracleType == 0) {
-            revert();
-        }
-        else if (oracleType == CONSTANT_VALUE) {
-            numberD18 = abi.decode(oracleRegistry[oracleId].extraData, (uint256));
-        }
-        else if (oracleType == PYTH_OFFCHAIN) {
-            bytes32 pythPriceId = abi.decode(oracleRegistry[oracleId].extraData, (bytes32));
-            PythStructs.Price memory p = pyth.getPriceUnsafe(pythPriceId); // YES IT'S DANGEROUS
-            uint256 price = uint256(uint64(p.price));
-            uint256 conf = p.conf;
-            int256 scale = p.expo + 18;
-            numberD18 = (scale > 0) ? (price-conf)*10**uint256(scale) : (price-conf)/10**uint256(-scale);
-        }
-        else if (oracleType == FLARE_ORACLE) {
-            revert("not implemented");
-        }
-        // hey scroll!
-        else if (oracleType == L1SLOAD_CHORNICLE_ORACLE) {
-            address l1OracleAddress = abi.decode(oracleRegistry[oracleId].extraData, (address));
-            (bool succ, bytes memory data) = L1SLOAD_PRECOMPILE.staticcall(
-                abi.encodePacked(l1OracleAddress, uint256(0))
-            );
-            if (!succ) {
-                revert ("can't read from l1");
-            }
-            numberD18 = abi.decode(data, (uint256)) & type(uint128).max;
-        }
-        else if (oracleType == CHORNICLE_ORACLE) {
-            address chonicle = abi.decode(oracleRegistry[oracleId].extraData, (address));
-            numberD18 = IChronicle(chonicle).read();
-        }
-    }
-}
+} 

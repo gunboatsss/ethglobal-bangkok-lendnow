@@ -21,11 +21,11 @@ contract LendNowFactoryTest is Test {
         quote = new ERC20Mock();
         ajnaPoolFactory = new ERC20PoolFactory(address(ajna));
         pool = IERC20Pool(ajnaPoolFactory.deployPool(address(collateral), address(quote), 0.01e18));
-        lendNowFactory = new LendNowFactory(address(ajnaPoolFactory));
+        lendNowFactory = new LendNowFactory(address(ajnaPoolFactory), address(69));
     }
 
     function test_deployPool() public {
-        address vault = lendNowFactory.createNewVault(address(collateral), address(quote), 5000);
+        address vault = lendNowFactory.createNewVault(address(collateral), address(quote), 5000, 0x1000000000000000000000000000000000000000000000000000000000000000, 0x2000000000000000000000000000000000000000000000000000000000000000, address(0));
         assertFalse(vault == address(0));
     }
 
